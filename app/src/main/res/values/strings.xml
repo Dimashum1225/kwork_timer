@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">kwork_timer_application</string>
+    <string name="Timer">Таймер</string>
+    <string name="image_View_Description">timer_icon</string>
+</resources>
