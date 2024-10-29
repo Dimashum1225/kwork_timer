@@ -45,20 +45,57 @@ class TimerService : Service() {
             "STOP_TIMER" -> {
                 stopTimer()
                 return START_NOT_STICKY
-            }
+            }"PAUSE_TIMER" -> {
+            pauseTimer()
+            return START_NOT_STICKY
+        }
             else -> {
-                // Отменяем предыдущий таймер уведомления, если он был
-                countdownTimer?.cancel()
-
                 remainingTimeMillis = intent?.getLongExtra("remainingTimeMillis", 0L) ?: 0L
                 timerName = intent?.getStringExtra("timerName") ?: "Таймер"
                 timerId = intent?.getIntExtra("timerId", 0) ?: 0
                 Log.d("TimerService", "Service started with remainingTimeMillis: $remainingTimeMillis, timerName: $timerName, timerId: $timerId")
 
-                startTimer()  // Здесь вызывается метод для запуска нового таймера
+                activeTimers[timerId] = remainingTimeMillis  // Добавляем таймер в список активных
+
+                // Останавливаем предыдущий таймер уведомления, если он был
+                countdownTimer?.cancel()
+
+                // Создаем новый CountdownTimer для обновления уведомления только последнего таймера
+                countdownTimer = object : CountDownTimer(remainingTimeMillis, 1000) {
+                    override fun onTick(millisUntilFinished: Long) {
+                        updateNotification(millisUntilFinished, timerId)
+                    }
+
+                    override fun onFinish() {
+                        notifyTimerFinished(timerId)         // Показываем уведомление о завершении таймера
+                        activeTimers.remove(timerId)          // Удаляем таймер из списка активных
+                        notificationManager.cancel(timerId)   // Удаляем уведомление после завершения
+                        stopSelfIfNoActiveTimers()            // Останавливаем сервис, если больше нет активных таймеров
+                    }
+                }.start()
             }
         }
         return START_NOT_STICKY
+    }
+    private fun pauseTimer() {
+        countdownTimer?.cancel()
+        updatePausedNotification()
+        Log.d("TimerService", "Timer paused for ID: $timerId")
+    }
+    private fun updatePausedNotification() {
+        val notificationLayout = RemoteViews(packageName, R.layout.notification_timer).apply {
+            setTextViewText(R.id.notification_title, "$timerName (Пауза)")
+            setTextViewText(R.id.notification_time, "На паузе")
+        }
+
+        val notification = NotificationCompat.Builder(this, "TIMER_CHANNEL")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContent(notificationLayout)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        notificationManager.notify(timerId, notification)
     }
 
     private fun stopTimer() {
@@ -75,20 +112,6 @@ class TimerService : Service() {
             countdownTimer?.cancel()            // Отменяем таймер уведомления
             stopSelf()                           // Останавливаем сервис
         }
-    }
-    private fun startTimer() {
-        countdownTimer = object : CountDownTimer(remainingTimeMillis, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                updateNotification(millisUntilFinished, timerId)
-            }
-
-            override fun onFinish() {
-                notifyTimerFinished(timerId)
-                activeTimers.remove(timerId)
-                notificationManager.cancel(timerId)
-                stopSelfIfNoActiveTimers()
-            }
-        }.start()
     }
 
 
@@ -146,6 +169,13 @@ class TimerService : Service() {
             .build()
 
         notificationManager.notify(timerId, finishedNotification) // Использование timerId
+    }
+    private fun createPausePendingIntent(timerId: Int): PendingIntent {
+        val pauseIntent = Intent(this, TimerService::class.java).apply {
+            action = "PAUSE_TIMER"
+            putExtra("timerId", timerId)
+        }
+        return PendingIntent.getService(this, timerId, pauseIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun createStopPendingIntent(timerId: Int): PendingIntent {

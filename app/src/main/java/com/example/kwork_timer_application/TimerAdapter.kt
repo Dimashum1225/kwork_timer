@@ -70,6 +70,11 @@ class TimerAdapter(
             activeTimers[timer.id]?.cancel()
             activeTimers.remove(timer.id)
             isRunning = false
+            val pauseIntent = Intent(context, TimerService::class.java).apply {
+                action = "PAUSE_TIMER" // Определяем действие
+                putExtra("timerId", timer.id) // Передаем timerId
+            }
+            context.startService(pauseIntent)
         }
         holder.buttonStop.setOnClickListener {
             // Создаем AlertDialog для подтверждения удаления
