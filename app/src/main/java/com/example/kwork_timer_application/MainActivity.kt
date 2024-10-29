@@ -1,5 +1,7 @@
 package com.example.kwork_timer_application
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.widget.EditText
@@ -69,8 +71,26 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     database.timerDao().insert(newTimer)
                 }
+
+                // Запуск сервиса таймера
+                startTimerService(name, totalMillis)
+                // Пример вызова
+
             }
         }
+
+
+    }
+    private fun startTimerService(name: String, remainingTimeMillis: Long) {
+        val intent = Intent(this, TimerService::class.java)
+        intent.putExtra("remainingTimeMillis", remainingTimeMillis)
+        intent.putExtra("timerName", name)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent) // Для Android 8.0 и выше (API 26+)
+        } else {
+            startService(intent) // Для Android 7.1 и ниже
+        }
+
     }
 
     // Функция для отображения диалога выбора времени и имени таймера

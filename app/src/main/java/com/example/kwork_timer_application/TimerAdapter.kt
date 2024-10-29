@@ -1,6 +1,7 @@
 package com.example.kwork_timer_application
 
 import android.content.Context
+import android.content.Intent
 import android.os.CountDownTimer
 import android.view.LayoutInflater
 import android.view.View
@@ -53,6 +54,15 @@ class TimerAdapter(
                     }
                 }.start()
                 activeTimers[timer.id] = countDownTimer
+                val random = (Math.random() * 1000)
+                val timerId = random.toInt()
+                // Запуск TimerService с передачей оставшегося времени и имени таймера
+                val serviceIntent = Intent(context, TimerService::class.java).apply {
+                    putExtra("remainingTimeMillis", timer.remainingTimeMillis)
+                    putExtra("timerName", timer.name)
+                    putExtra("timerId",timerId)
+                }
+                context.startService(serviceIntent)  // Запускаем сервис
             }
         }
 
@@ -61,20 +71,25 @@ class TimerAdapter(
             activeTimers.remove(timer.id)
             isRunning = false
         }
-
         holder.buttonStop.setOnClickListener {
             // Создаем AlertDialog для подтверждения удаления
-
             AlertDialog.Builder(context).apply {
                 setTitle("Подтверждение удаления")
                 setMessage("Вы уверены, что хотите удалить таймер?")
                 setPositiveButton("Да") { _, _ ->
+                    // Остановка и удаление таймера
                     activeTimers[timer.id]?.cancel()
                     activeTimers.remove(timer.id)
 
+                    // Остановка сервиса и удаление уведомления
+                    val stopIntent = Intent(context, TimerService::class.java).apply {
+                        action = "STOP_TIMER" // Определяем действие
+                        putExtra("timerId", timer.id) // Передаем timerId
+                    }
+                    context.startService(stopIntent) // Остановка сервиса
+
                     // Удаляем таймер из базы данных
                     onDeleteTimer(timer)
-
                     timers.removeAt(position)
                     notifyItemRemoved(position)
                     notifyItemRangeChanged(position, timers.size)
@@ -85,6 +100,7 @@ class TimerAdapter(
                 show()
             }
         }
+
     }
     override fun getItemCount() = timers.size
 }
