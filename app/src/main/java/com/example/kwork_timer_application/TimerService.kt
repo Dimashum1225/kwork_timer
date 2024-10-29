@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.CountDownTimer
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -25,6 +26,9 @@ class TimerService : Service() {
 
     // Используем MutableMap для хранения активных таймеров
     private val activeTimers = mutableMapOf<Int, Long>()
+    private var countdownTimer: CountDownTimer? = null
+
+
 
     // Остальные ваши переменные...
 
@@ -32,37 +36,62 @@ class TimerService : Service() {
         super.onCreate()
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
+
+
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             "STOP_TIMER" -> {
-                stopTimer(intent.getIntExtra("timerId", 0)) // Передаем timerId для остановки конкретного таймера
+                stopTimer()
                 return START_NOT_STICKY
             }
             else -> {
-                // Получаем параметры таймера
+                // Отменяем предыдущий таймер уведомления, если он был
+                countdownTimer?.cancel()
+
                 remainingTimeMillis = intent?.getLongExtra("remainingTimeMillis", 0L) ?: 0L
                 timerName = intent?.getStringExtra("timerName") ?: "Таймер"
                 timerId = intent?.getIntExtra("timerId", 0) ?: 0
-
-                // Добавляем новый таймер в активные таймеры
-                activeTimers[timerId] = remainingTimeMillis
-
                 Log.d("TimerService", "Service started with remainingTimeMillis: $remainingTimeMillis, timerName: $timerName, timerId: $timerId")
-                handler.post(updateTimerTask)
+
+                startTimer()  // Здесь вызывается метод для запуска нового таймера
             }
         }
         return START_NOT_STICKY
     }
 
-    private fun stopTimer(timerId: Int) {
+    private fun stopTimer() {
         Log.d("TimerService", "Stopping timer with ID: $timerId")
-        handler.removeCallbacks(updateTimerTask) // Остановка таймера
-        notificationManager.cancel(timerId) // Удаление уведомления
-        activeTimers.remove(timerId) // Удаляем таймер из активных
-        if (activeTimers.isEmpty()) stopSelf() // Остановка сервиса, если больше нет активных таймеров
+
+        countdownTimer?.cancel()            // Останавливаем счетчик уведомления
+        activeTimers.remove(timerId)         // Удаляем таймер из списка активных
+        notificationManager.cancel(timerId)  // Удаляем уведомление
+        stopSelfIfNoActiveTimers()           // Проверяем, нужно ли остановить сервис
     }
+
+    private fun stopSelfIfNoActiveTimers() {
+        if (activeTimers.isEmpty()) {
+            countdownTimer?.cancel()            // Отменяем таймер уведомления
+            stopSelf()                           // Останавливаем сервис
+        }
+    }
+    private fun startTimer() {
+        countdownTimer = object : CountDownTimer(remainingTimeMillis, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                updateNotification(millisUntilFinished, timerId)
+            }
+
+            override fun onFinish() {
+                notifyTimerFinished(timerId)
+                activeTimers.remove(timerId)
+                notificationManager.cancel(timerId)
+                stopSelfIfNoActiveTimers()
+            }
+        }.start()
+    }
+
+
 
     private val updateTimerTask = object : Runnable {
         override fun run() {
