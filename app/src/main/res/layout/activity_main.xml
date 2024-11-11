@@ -27,14 +27,23 @@
             android:textStyle="bold" />
 
         <ImageView
+            android:id="@+id/imageView2"
+            android:layout_width="5dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+
+            android:src="@drawable/pencil_svgrepo_com" />
+
+        <ImageView
             android:id="@+id/imageView"
             android:layout_width="50dp"
             android:layout_height="match_parent"
-            android:layout_weight="0"
-            android:contentDescription="@string/image_View_Description"
-            android:src="@drawable/timer_svgrepo_com"
+            android:layout_weight="1"
             android:clickable="true"
-            android:focusable="true" />
+            android:contentDescription="@string/image_View_Description"
+            android:focusable="true"
+            android:src="@drawable/timer_svgrepo_com" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
