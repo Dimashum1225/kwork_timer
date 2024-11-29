@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         val nameInput = dialogView.findViewById<EditText>(R.id.input_timer_name) // Поле для имени таймера
 
         // Настройка пределов для NumberPicker'ов
-        daysPicker.maxValue = 100
+        daysPicker.maxValue = 999
         hoursPicker.maxValue = 23
         minutesPicker.maxValue = 59
         secondsPicker.maxValue = 59
